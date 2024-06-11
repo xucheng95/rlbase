@@ -46,7 +46,7 @@ class ReplayBuffer:
         return len(self.memory)
 
 
-class DQNAgent:
+class DoubleDQNAgent:
     def __init__(
         self,
         state_size,
@@ -98,8 +98,10 @@ class DQNAgent:
         rewards = torch.from_numpy(rewards).float()
         dones = torch.from_numpy(dones).float()
 
+        next_actions = self.qnetwork_local(next_states).detach().argmax(1).unsqueeze(1)
+
         Q_targets_next = (
-            self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)
+            self.qnetwork_target(next_states).gather(1, next_actions).detach()
         )
         Q_targets = rewards + (self.gamma * Q_targets_next * (1 - dones))
 
@@ -125,7 +127,7 @@ def train():
     env = gymnasium.make("CartPole-v1")
     state_size = env.observation_space.shape[0]
     action_size = env.action_space.n
-    agent = DQNAgent(
+    agent = DoubleDQNAgent(
         state_size,
         action_size,
         buffer_size=10000,
@@ -168,24 +170,24 @@ def train():
                 f"Episode {i_episode}/{n_episodes} - Score: {total_rewards} - Epsilon: {epsilon:.2f}"
             )
             
-            torch.save(agent.qnetwork_local.state_dict(), f"checkpoints/dqn_model_{i_episode}.pt")
+            torch.save(agent.qnetwork_local.state_dict(), f"checkpoints/doubledqn_model_{i_episode}.pt")
 
     env.close()
     plt.plot(episode_rewards)
     plt.xlabel('Episode')
     plt.ylabel('Total Reward')
     plt.title('Reward over Episodes')
-    plt.savefig('dqn_rewards.png')
+    plt.savefig('doubledqn_rewards.png')
 
 
 def test():
     env = gymnasium.make("CartPole-v1", render_mode="human")
     state_size = env.observation_space.shape[0]
     action_size = env.action_space.n
-    agent = DQNAgent(state_size, action_size, buffer_size=10000, batch_size=64, gamma=0.99, learning_rate=0.001, tau=0.01, update_every=4)
+    agent = DoubleDQNAgent(state_size, action_size, buffer_size=10000, batch_size=64, gamma=0.99, learning_rate=0.001, tau=0.01, update_every=4)
     
     last_episode = 1000 
-    agent.qnetwork_local.load_state_dict(torch.load(f"checkpoints/dqn_model_{last_episode}.pt"))
+    agent.qnetwork_local.load_state_dict(torch.load(f"checkpoints/doubledqn_model_{last_episode}.pt"))
     
     # 进行测试
     for _ in range(5):
