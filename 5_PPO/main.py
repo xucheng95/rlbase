@@ -2,7 +2,7 @@ import os
 import argparse
 import gymnasium
 import matplotlib.pyplot as plt
-from REINFORCE import REINFORCEAgent
+from PPO import PPOAgent
 
 
 def train(args):
@@ -18,11 +18,15 @@ def train(args):
     env = gymnasium.make(args.env_name)
     state_size = env.observation_space.shape[0]
     action_size = env.action_space.n
-    agent = REINFORCEAgent(
+    agent = PPOAgent(
         state_size,
         action_size,
         gamma=args.gamma,
         learning_rate=args.learning_rate,
+        clip_epsilon=args.clip_epsilon,
+        update_every=args.update_every,
+        k_epochs=args.k_epochs,
+        entropy_coeff=args.entropy_coeff
     )
 
     episode_rewards = []
@@ -33,16 +37,17 @@ def train(args):
         state, _ = env.reset()
         total_rewards = 0
         for _ in range(args.max_t):
-            action = agent.select_action(state, sample=True)
+            action, log_prob = agent.select_action(state, sample=True)
             next_state, reward, terminated, truncated, _ = env.step(action)
             total_rewards += reward
             done = terminated or truncated
-            agent.remember(state, action, reward)
+            agent.remember(state, action, reward, log_prob, done)
             state = next_state
             if done:
                 break
-        agent.learn()
         episode_rewards.append(total_rewards)
+        if i_episode % agent.update_every == 0:
+            agent.learn()
         if i_episode % args.print_interval == 0:
             print(f"Episode {i_episode}/{args.n_episodes} - Score: {total_rewards}")
         if i_episode % args.checkpoint_interval == 0:
@@ -72,7 +77,7 @@ def test(args):
     env = gymnasium.make(args.env_name, render_mode=args.render_mode)
     state_size = env.observation_space.shape[0]
     action_size = env.action_space.n
-    agent = REINFORCEAgent(state_size, action_size)
+    agent = PPOAgent(state_size, action_size)
     agent.load("checkpoints", args.n_episodes)
 
     for _ in range(5):
@@ -80,7 +85,7 @@ def test(args):
         total_rewards = 0
         while True:
             env.render()
-            action = agent.select_action(state)
+            action, _ = agent.select_action(state)
             next_state, reward, terminated, truncated, _ = env.step(action)
             total_rewards += reward
             if terminated or truncated:
@@ -106,7 +111,19 @@ if __name__ == "__main__":
         "--learning_rate", default=0.001, type=float, help="学习率，默认为0.001"
     )
     parser.add_argument(
-        "--n_episodes", default=2000, type=int, help="训练回合数，默认为2000"
+        "--clip_epsilon", default=0.2, type=float, help="裁剪epsilon，默认为0.2"
+    )
+    parser.add_argument(
+        "--update_every", default=4, type=int, help="更新间隔，默认为4"
+    )
+    parser.add_argument(
+        "--k_epochs", default=4, type=int, help="K步优化，默认为4"
+    )
+    parser.add_argument(
+        "--entropy_coeff", default=0.01, type=float, help="熵系数，默认为0.01"
+    )
+    parser.add_argument(
+        "--n_episodes", default=1000, type=int, help="训练回合数，默认为1000"
     )
     parser.add_argument(
         "--max_t", default=1000, type=int, help="最大时间步数，默认为1000"
