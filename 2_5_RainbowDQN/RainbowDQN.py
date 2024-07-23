@@ -1,28 +1,27 @@
-import os
+import random
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import random
-from collections import deque, namedtuple
-import gymnasium
-import matplotlib.pyplot as plt
+from collections import deque
 
-# Noisy Linear layer
+
 class NoisyLinear(nn.Module):
     def __init__(self, in_features, out_features, sigma_init=0.017):
-        super(NoisyLinear, self).__init__()
+        super().__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.sigma_init = sigma_init
 
         self.weight_mu = nn.Parameter(torch.FloatTensor(out_features, in_features))
         self.weight_sigma = nn.Parameter(torch.FloatTensor(out_features, in_features))
-        self.register_buffer('weight_epsilon', torch.FloatTensor(out_features, in_features))
+        self.register_buffer(
+            "weight_epsilon", torch.FloatTensor(out_features, in_features)
+        )
 
         self.bias_mu = nn.Parameter(torch.FloatTensor(out_features))
         self.bias_sigma = nn.Parameter(torch.FloatTensor(out_features))
-        self.register_buffer('bias_epsilon', torch.FloatTensor(out_features))
+        self.register_buffer("bias_epsilon", torch.FloatTensor(out_features))
 
         self.reset_parameters()
         self.reset_noise()
@@ -47,13 +46,14 @@ class NoisyLinear(nn.Module):
             bias = self.bias_mu
         return torch.nn.functional.linear(x, weight, bias)
 
+
 class QNetwork(nn.Module):
     def __init__(self, state_size, action_size):
-        super(QNetwork, self).__init__()
-        self.fc1 = NoisyLinear(state_size, 256)
-        self.fc2 = NoisyLinear(256, 256)
-        self.value_stream = NoisyLinear(256, 1)
-        self.advantage_stream = NoisyLinear(256, action_size)
+        super().__init__()
+        self.fc1 = NoisyLinear(state_size, 128)
+        self.fc2 = NoisyLinear(128, 128)
+        self.value_stream = NoisyLinear(128, 1)
+        self.advantage_stream = NoisyLinear(128, action_size)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
@@ -62,6 +62,13 @@ class QNetwork(nn.Module):
         advantage = self.advantage_stream(x)
         q_values = value + (advantage - advantage.mean())
         return q_values
+
+    def reset_noise(self):
+        self.fc1.reset_noise()
+        self.fc2.reset_noise()
+        self.value_stream.reset_noise()
+        self.advantage_stream.reset_noise()
+
 
 class SumTree:
     def __init__(self, capacity):
@@ -110,6 +117,7 @@ class SumTree:
     def __len__(self):
         return self.size
 
+
 class PrioritizedReplayBuffer:
     def __init__(self, capacity, alpha):
         self.tree = SumTree(capacity)
@@ -144,8 +152,23 @@ class PrioritizedReplayBuffer:
     def __len__(self):
         return len(self.tree)
 
+
 class RainbowAgent:
-    def __init__(self, state_size, action_size, buffer_size, batch_size, gamma, learning_rate, tau, update_every, alpha, beta_start, beta_frames, n_step):
+    def __init__(
+        self,
+        state_size,
+        action_size,
+        buffer_size=10000,
+        batch_size=64,
+        gamma=0.99,
+        learning_rate=0.001,
+        tau=0.01,
+        update_every=4,
+        alpha=0.6,
+        beta_start=0.4,
+        beta_frames=1000,
+        n_step=3,
+    ):
         self.state_size = state_size
         self.action_size = action_size
         self.gamma = gamma
@@ -156,7 +179,7 @@ class RainbowAgent:
         self.beta_frames = beta_frames
         self.beta = beta_start
         self.n_step = n_step
-        
+
         self.qnetwork_local = QNetwork(state_size, action_size)
         self.qnetwork_target = QNetwork(state_size, action_size)
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=learning_rate)
@@ -165,38 +188,46 @@ class RainbowAgent:
         self.t_step = 0
         self.frame_idx = 0
 
-    def step(self, state, action, reward, next_state, done):
-        self.frame_idx += 1
-        self.n_step_memory.append((state, action, reward, next_state, done))
-        
-        if len(self.n_step_memory) == self.n_step or done:
-            reward, next_state, done = self.compute_n_step_return()
-            self.memory.add(abs(reward), (state, action, reward, next_state, done))
-        
-        self.t_step = (self.t_step + 1) % self.update_every
-        
-        if self.t_step == 0 and len(self.memory) > self.batch_size:
-            experiences, idxs, is_weights = self.memory.sample(self.batch_size, self.beta)
-            self.learn(experiences, idxs, is_weights)
-            self.beta = min(1.0, self.beta_start + self.frame_idx * (1.0 - self.beta_start) / self.beta_frames)
-    
-    def act(self, state, epsilon=0.0):
+    def select_action(self, state, epsilon=0.0):
         state = torch.from_numpy(state).float().unsqueeze(0)
         self.qnetwork_local.eval()
         with torch.no_grad():
             action_values = self.qnetwork_local(state)
         self.qnetwork_local.train()
-        
+
         if random.random() > epsilon:
             return np.argmax(action_values.cpu().data.numpy())
         else:
             return random.choice(np.arange(self.action_size))
-    
+
+    def remember(self, state, action, reward, next_state, done):
+        self.frame_idx += 1
+        self.n_step_memory.append((state, action, reward, next_state, done))
+
+        if len(self.n_step_memory) == self.n_step or done:
+            reward, next_state, done = self.compute_n_step_return()
+            self.memory.add(abs(reward), (state, action, reward, next_state, done))
+
+        self.t_step = (self.t_step + 1) % self.update_every
+
+        if self.t_step == 0 and len(self.memory) > self.batch_size:
+            experiences, idxs, is_weights = self.memory.sample(
+                self.batch_size, self.beta
+            )
+            self.learn(experiences, idxs, is_weights)
+            self.qnetwork_local.reset_noise()
+            self.qnetwork_target.reset_noise()
+            self.beta = min(
+                1.0,
+                self.beta_start
+                + self.frame_idx * (1.0 - self.beta_start) / self.beta_frames,
+            )
+
     def compute_n_step_return(self):
         R = 0
         for i in range(self.n_step):
             _, _, reward, _, done = self.n_step_memory[i]
-            R += (self.gamma ** i) * reward
+            R += (self.gamma**i) * reward
             if done:
                 break
         next_state = self.n_step_memory[-1][3]
@@ -205,140 +236,59 @@ class RainbowAgent:
 
     def learn(self, experiences, idxs, is_weights):
         states, actions, rewards, next_states, dones = zip(*experiences)
-
         states = torch.from_numpy(np.vstack(states)).float()
         actions = torch.from_numpy(np.vstack(actions)).long()
         rewards = torch.from_numpy(np.vstack(rewards)).float()
         next_states = torch.from_numpy(np.vstack(next_states)).float()
         dones = torch.from_numpy(np.vstack(dones).astype(np.uint8)).float()
         is_weights = torch.from_numpy(np.vstack(is_weights)).float()
-
-        Q_targets_next = self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)
+        Q_targets_next = (
+            self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)
+        )
         Q_targets = rewards + (self.gamma * Q_targets_next * (1 - dones))
-        
         Q_expected = self.qnetwork_local(states).gather(1, actions)
-        
         errors = torch.abs(Q_expected - Q_targets).cpu().data.numpy()
         for i in range(len(idxs)):
             self.memory.update(idxs[i], errors[i])
-        
         loss = (is_weights * (Q_expected - Q_targets) ** 2).mean()
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        
+
         self.soft_update(self.qnetwork_local, self.qnetwork_target)
-    
+
     def soft_update(self, local_model, target_model):
-        for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
-            target_param.data.copy_(self.tau * local_param.data + (1.0 - self.tau) * target_param.data)
-
-    def reset_noise(self):
-        self.qnetwork_local.fc1.reset_noise()
-        self.qnetwork_local.fc2.reset_noise()
-        self.qnetwork_local.value_stream.reset_noise()
-        self.qnetwork_local.advantage_stream.reset_noise()
-        self.qnetwork_target.fc1.reset_noise()
-        self.qnetwork_target.fc2.reset_noise()
-        self.qnetwork_target.value_stream.reset_noise()
-        self.qnetwork_target.advantage_stream.reset_noise()
-
-def train():
-    env = gymnasium.make("CartPole-v1")
-    state_size = env.observation_space.shape[0]
-    action_size = env.action_space.n
-    agent = RainbowAgent(
-        state_size,
-        action_size,
-        buffer_size=10000,
-        batch_size=64,
-        gamma=0.99,
-        learning_rate=0.01,  # Adjusted learning rate
-        tau=0.01,
-        update_every=4,
-        alpha=0.6,
-        beta_start=0.4,
-        beta_frames=1000,
-        n_step=3
-    )
-
-    n_episodes = 1000
-    max_t = 1000
-    print_interval = 100
-    epsilon_start = 1.0
-    epsilon_end = 0.01
-    epsilon_decay = 0.995
-    epsilon = epsilon_start
-    episode_rewards = []
-
-    if not os.path.exists("checkpoints"):
-        os.makedirs("checkpoints") 
-
-    for i_episode in range(1, n_episodes + 1):
-        state, _ = env.reset()
-        total_rewards = 0
-        for t in range(max_t):
-            action = agent.act(state, epsilon)
-            next_state, reward, terminated, truncated, _ = env.step(action)
-            total_rewards += reward
-            done = terminated or truncated
-            agent.step(state, action, reward, next_state, done)
-            state = next_state
-            if done:
-                break
-
-        epsilon = max(epsilon_end, epsilon * epsilon_decay)
-        episode_rewards.append(total_rewards)
-        if i_episode % print_interval == 0:
-            print(
-                f"Episode {i_episode}/{n_episodes} - Score: {total_rewards} - Epsilon: {epsilon:.2f}"
+        for target_param, local_param in zip(
+            target_model.parameters(), local_model.parameters()
+        ):
+            target_param.data.copy_(
+                self.tau * local_param.data + (1.0 - self.tau) * target_param.data
             )
-            
-            torch.save(agent.qnetwork_local.state_dict(), f"checkpoints/rainbow_model_{i_episode}.pt")
 
-    env.close()
-    plt.plot(episode_rewards)
-    plt.xlabel('Episode')
-    plt.ylabel('Total Reward')
-    plt.title('Reward over Episodes')
-    plt.savefig('rainbow_rewards.png')
+    def save(self, path, name):
+        """
+        将当前DQN模型的参数保存到指定路径下。
 
-def test():
-    env = gymnasium.make("CartPole-v1", render_mode="human")
-    state_size = env.observation_space.shape[0]
-    action_size = env.action_space.n
-    agent = RainbowAgent(
-        state_size,
-        action_size,
-        buffer_size=10000,
-        batch_size=64,
-        gamma=0.99,
-        learning_rate=0.0005,
-        tau=0.01,
-        update_every=4,
-        alpha=0.6,
-        beta_start=0.4,
-        beta_frames=1000,
-        n_step=3
-    )
-    
-    last_episode = 1000 
-    agent.qnetwork_local.load_state_dict(torch.load(f"checkpoints/rainbow_model_{last_episode}.pt"))
-    
-    for _ in range(5):
-        state, _ = env.reset()
-        total_rewards = 0
-        while True:
-            env.render()
-            action = agent.act(state, epsilon=0.0)
-            next_state, reward, terminated, truncated , _ = env.step(action)
-            total_rewards += reward
-            if terminated or truncated:
-                break
-            state = next_state
-        print(f"Test Completed! Total Rewards: {total_rewards}")
-    env.close()
+        Args:
+            path (str): 保存模型的路径。
+            name (str): 模型的名称，用于生成保存文件的名称。
 
-if __name__ == "__main__":
-    train()
-    test()
+        Returns:
+            None
+
+        """
+        torch.save(self.qnetwork_local.state_dict(), f"{path}/rainbow_model_{name}.pt")
+
+    def load(self, path, name):
+        """
+        从指定路径下加载DQN模型的参数，并更新当前DQN模型。
+        Args:
+            path (str): 保存模型的路径。
+            name (str): 模型的名称，用于生成保存文件的名称。
+        Returns:
+            None
+
+        """
+        self.qnetwork_local.load_state_dict(
+            torch.load(f"{path}/rainbow_model_{name}.pt")
+        )

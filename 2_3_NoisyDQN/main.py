@@ -8,13 +8,13 @@ from NoisyDQN import NoisyDQNAgent
 def train(args):
     """
     训练DQN并在环境中执行以获取奖励。
-    
+
     Args:
         args (argparse.Namespace): 包含所有命令行参数的命名空间对象。
-    
+
     Returns:
         None: 此函数没有返回值，但在训练过程中会保存检查点和奖励图像。
-    
+
     """
     env = gymnasium.make(args.env_name)
     state_size = env.observation_space.shape[0]
@@ -43,7 +43,7 @@ def train(args):
             next_state, reward, terminated, truncated, _ = env.step(action)
             total_rewards += reward
             done = terminated or truncated
-            agent.step(state, action, reward, next_state, done)
+            agent.remember(state, action, reward, next_state, done)
             state = next_state
             if done:
                 break
@@ -62,22 +62,22 @@ def train(args):
     plt.xlabel("Episode")
     plt.ylabel("Total Reward")
     plt.title("Reward over Episodes")
-    plt.savefig("checkpoints/dqn_rewards.png")
+    plt.savefig("checkpoints/rewards.png")
 
 
 def test(args):
     """
     对训练好的DQN进行5次测试，并打印每次的总奖励。
-    
+
     Args:
         args: argparse.Namespace类型的对象，包含以下属性：
             - env_name (str): 环境名称。
             - render_mode (str): 渲染模式，可选值为'human'或'rgb_array'。
             - n_episodes (int): 从检查点中加载的代理模型的序号。
-    
+
     Returns:
         None
-    
+
     """
     env = gymnasium.make(args.env_name, render_mode=args.render_mode)
     state_size = env.observation_space.shape[0]
@@ -103,7 +103,7 @@ def test(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--train_mode", action="store_true", help="是否训练，默认为True"
+        "--test_mode", action="store_true", help="是否为测试模式，默认为False"
     )
     parser.add_argument(
         "--env_name", default="CartPole-v1", help="环境名称，默认为CartPole-v1"
@@ -146,6 +146,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if args.train_mode:
+    if args.test_mode:
+        test(args)
+    else:
         train(args)
-    test(args)
+        test(args)

@@ -9,6 +9,7 @@ import gymnasium
 import matplotlib.pyplot as plt
 from torch.distributions import Normal
 
+
 # SAC Actor Network
 class Actor(nn.Module):
     def __init__(self, state_size, action_size, action_range):
@@ -27,6 +28,7 @@ class Actor(nn.Module):
         std = torch.exp(log_std)
         return mean, std
 
+
 # SAC Critic Network
 class Critic(nn.Module):
     def __init__(self, state_size, action_size):
@@ -42,9 +44,21 @@ class Critic(nn.Module):
         x = self.fc_out(x)
         return x
 
+
 # SAC Agent
 class SACAgent:
-    def __init__(self, state_size, action_size, action_range, buffer_size, batch_size, gamma, tau, lr, alpha):
+    def __init__(
+        self,
+        state_size,
+        action_size,
+        action_range,
+        buffer_size,
+        batch_size,
+        gamma,
+        tau,
+        lr,
+        alpha,
+    ):
         self.state_size = state_size
         self.action_size = action_size
         self.action_range = action_range
@@ -71,8 +85,12 @@ class SACAgent:
         self.soft_update(self.critic2, self.target_critic2)
 
     def soft_update(self, local_model, target_model):
-        for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
-            target_param.data.copy_(self.tau * local_param.data + (1.0 - self.tau) * target_param.data)
+        for target_param, local_param in zip(
+            target_model.parameters(), local_model.parameters()
+        ):
+            target_param.data.copy_(
+                self.tau * local_param.data + (1.0 - self.tau) * target_param.data
+            )
 
     def act(self, state, deterministic=False):
         state = torch.FloatTensor(state).unsqueeze(0)
@@ -84,7 +102,7 @@ class SACAgent:
             action = dist.sample()
         return action.clamp(-self.action_range, self.action_range).detach().numpy()[0]
 
-    def step(self, state, action, reward, next_state, done):
+    def remember(self, state, action, reward, next_state, done):
         self.memory.add(state, action, reward, next_state, done)
         if len(self.memory) > self.batch_size:
             experiences = self.memory.sample()
@@ -129,6 +147,7 @@ class SACAgent:
 
         self.update_targets()
 
+
 class ReplayBuffer:
     def __init__(self, buffer_size, batch_size):
         self.memory = deque(maxlen=buffer_size)
@@ -151,6 +170,7 @@ class ReplayBuffer:
     def __len__(self):
         return len(self.memory)
 
+
 def train():
     env = gymnasium.make("Pendulum-v1")
     state_size = env.observation_space.shape[0]
@@ -165,7 +185,7 @@ def train():
         gamma=0.99,
         tau=0.005,
         lr=0.0003,
-        alpha=0.2
+        alpha=0.2,
     )
 
     n_episodes = 1000
@@ -184,7 +204,7 @@ def train():
             next_state, reward, terminated, truncated, _ = env.step(action)
             total_rewards += reward
             done = terminated or truncated
-            agent.step(state, action, reward, next_state, done)
+            agent.remember(state, action, reward, next_state, done)
             state = next_state
             if done:
                 break
@@ -192,16 +212,22 @@ def train():
         episode_rewards.append(total_rewards)
         if i_episode % print_interval == 0:
             print(f"Episode {i_episode}/{n_episodes} - Score: {total_rewards}")
-            torch.save(agent.actor.state_dict(), f"checkpoints/sac_actor_{i_episode}.pt")
-            torch.save(agent.critic1.state_dict(), f"checkpoints/sac_critic1_{i_episode}.pt")
-            torch.save(agent.critic2.state_dict(), f"checkpoints/sac_critic2_{i_episode}.pt")
+            torch.save(
+                agent.actor.state_dict(), f"checkpoints/sac_actor_{i_episode}.pt"
+            )
+            torch.save(
+                agent.critic1.state_dict(), f"checkpoints/sac_critic1_{i_episode}.pt"
+            )
+            torch.save(
+                agent.critic2.state_dict(), f"checkpoints/sac_critic2_{i_episode}.pt"
+            )
 
     env.close()
     plt.plot(episode_rewards)
-    plt.xlabel('Episode')
-    plt.ylabel('Total Reward')
-    plt.title('Reward over Episodes')
-    plt.savefig('sac_rewards.png')
+    plt.xlabel("Episode")
+    plt.ylabel("Total Reward")
+    plt.title("Reward over Episodes")
+    plt.savefig("sac_rewards.png")
 
 
 def test():
@@ -218,13 +244,17 @@ def test():
         gamma=0.99,
         tau=0.005,
         lr=0.0003,
-        alpha=0.2
+        alpha=0.2,
     )
-    
+
     last_episode = 1000
     agent.actor.load_state_dict(torch.load(f"checkpoints/sac_actor_{last_episode}.pt"))
-    agent.critic1.load_state_dict(torch.load(f"checkpoints/sac_critic1_{last_episode}.pt"))
-    agent.critic2.load_state_dict(torch.load(f"checkpoints/sac_critic2_{last_episode}.pt"))
+    agent.critic1.load_state_dict(
+        torch.load(f"checkpoints/sac_critic1_{last_episode}.pt")
+    )
+    agent.critic2.load_state_dict(
+        torch.load(f"checkpoints/sac_critic2_{last_episode}.pt")
+    )
 
     for _ in range(5):
         state, _ = env.reset()
@@ -239,6 +269,7 @@ def test():
             state = next_state
         print(f"Test Completed! Total Rewards: {total_rewards}")
     env.close()
+
 
 if __name__ == "__main__":
     # train()

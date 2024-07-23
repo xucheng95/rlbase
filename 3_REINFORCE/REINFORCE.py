@@ -37,13 +37,18 @@ class REINFORCEAgent:
         action = np.random.choice(self.action_size, p=probs.detach().numpy().squeeze())
         return action
 
-    def step(self, state, action, reward):
+    def remember(self, state, action, reward):
         self.memory.append((state, action, reward))
 
     def learn(self):
         states, actions, rewards = zip(*self.memory)
         discounts = np.array([0.99**i for i in range(len(rewards))])
-        returns = np.array([sum(rewards[i:] * discounts[:len(rewards)-i]) for i in range(len(rewards))])
+        returns = np.array(
+            [
+                sum(rewards[i:] * discounts[: len(rewards) - i])
+                for i in range(len(rewards))
+            ]
+        )
 
         states = torch.tensor(states, dtype=torch.float)
         actions = torch.tensor(actions, dtype=torch.long)
@@ -79,7 +84,7 @@ def train():
             action = agent.act(state)
             next_state, reward, terminated, truncated, _ = env.step(action)
             total_rewards += reward
-            agent.step(state, action, reward)
+            agent.remember(state, action, reward)
             state = next_state
             if terminated or truncated:
                 break
@@ -89,14 +94,17 @@ def train():
         if i_episode % print_interval == 0:
             print(f"Episode {i_episode}/{n_episodes} - Score: {total_rewards}")
 
-            torch.save(agent.policy_network.state_dict(), f"checkpoints/reinforce_model_{i_episode}.pt")
+            torch.save(
+                agent.policy_network.state_dict(),
+                f"checkpoints/reinforce_model_{i_episode}.pt",
+            )
 
     env.close()
     plt.plot(episode_rewards)
-    plt.xlabel('Episode')
-    plt.ylabel('Total Reward')
-    plt.title('Reward over Episodes')
-    plt.savefig('reinforce_rewards.png')
+    plt.xlabel("Episode")
+    plt.ylabel("Total Reward")
+    plt.title("Reward over Episodes")
+    plt.savefig("reinforce_rewards.png")
 
 
 def test():
@@ -106,7 +114,9 @@ def test():
     agent = REINFORCEAgent(state_size, action_size, learning_rate=0.001)
 
     last_episode = 1000
-    agent.policy_network.load_state_dict(torch.load(f"checkpoints/reinforce_model_{last_episode}.pt"))
+    agent.policy_network.load_state_dict(
+        torch.load(f"checkpoints/reinforce_model_{last_episode}.pt")
+    )
 
     for _ in range(5):
         state, _ = env.reset()
@@ -121,6 +131,7 @@ def test():
             state = next_state
         print(f"Test Completed! Total Rewards: {total_rewards}")
     env.close()
+
 
 if __name__ == "__main__":
     train()

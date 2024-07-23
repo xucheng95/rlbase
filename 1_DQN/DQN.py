@@ -10,14 +10,14 @@ class QNetwork(nn.Module):
     def __init__(self, state_size, action_size):
         """
         初始化函数，用于创建神经网络。
-        
+
         Args:
             state_size (int): 状态空间的大小。
             action_size (int): 动作空间的大小。
-        
+
         Returns:
             None: 无返回值，该函数主要用于初始化类的实例变量。
-        
+
         """
         super().__init__()
         self.fc1 = nn.Linear(state_size, 64)
@@ -35,14 +35,14 @@ class ReplayBuffer:
     def __init__(self, buffer_size, batch_size):
         """
         初始化一个经验回放（Experience Replay）的缓冲区对象。
-        
+
         Args:
             buffer_size (int): 经验回放缓冲区能够存储的最大样本数。
             batch_size (int): 批量采样时从缓冲区中抽取的样本数。
-        
+
         Returns:
             None: 该函数不返回任何值，而是初始化内部属性。
-        
+
         """
         self.memory = deque(maxlen=buffer_size)
         self.batch_size = batch_size
@@ -50,27 +50,27 @@ class ReplayBuffer:
     def add(self, state, action, reward, next_state, done):
         """
         将状态转移数据添加到记忆库中。
-        
+
         Args:
             state (numpy.ndarray): 当前环境的状态，形状为 (state_size,)。
             action (int): 动作编号，范围在 [0, action_size) 之间。
             reward (float): 代理（Agent）执行动作后从环境（Environment）获得的奖励。
             next_state (numpy.ndarray): 执行动作后转移到的下一个状态，形状为 (state_size,)。
             done (bool): 一个布尔值，指示当前回合是否结束。
-        
+
         Returns:
             None: 该函数不返回任何值，仅将状态转移数据添加到记忆库中。
-        
+
         """
         self.memory.append((state, action, reward, next_state, done))
 
     def sample(self):
         """
         从经验回放池中随机抽取一批经验用于训练。
-        
+
         Args:
             无参数。
-        
+
         Returns:
             tuple: 包含五个numpy数组的元组，分别代表：
                 - states (np.ndarray): 形状为 (batch_size, state_size) 的数组，表示状态。
@@ -78,7 +78,7 @@ class ReplayBuffer:
                 - rewards (np.ndarray): 形状为 (batch_size,) 的一维数组，表示奖励。
                 - next_states (np.ndarray): 形状为 (batch_size, state_size) 的数组，表示下一个状态。
                 - dones (np.ndarray): 形状为 (batch_size,) 的一维布尔数组，表示该经验是否结束了一个回合。
-        
+
         """
         experiences = random.sample(self.memory, self.batch_size)
         states, actions, rewards, next_states, dones = zip(*experiences)
@@ -107,7 +107,7 @@ class DQNAgent:
         update_every=4,
     ):
         """
-        初始化函数，用于设置DQN代理的参数和组件
+        初始化函数，用于设置DQN的参数和组件
 
         Args:
             state_size (int): 环境的状态大小（例如，环境中的状态空间的大小）
@@ -160,7 +160,7 @@ class DQNAgent:
         else:
             return random.choice(np.arange(self.action_size))
 
-    def step(self, state, action, reward, next_state, done):
+    def remember(self, state, action, reward, next_state, done):
         """
         更新代理（Agent）的经验池并决定何时进行学习。
 
@@ -244,7 +244,7 @@ class DQNAgent:
 
     def save(self, path, name):
         """
-        将当前DQN模型的参数保存到指定路径下，并命名为dqn_model_<name>.pt。
+        将当前DQN模型的参数保存到指定路径下。
 
         Args:
             path (str): 保存模型的路径。

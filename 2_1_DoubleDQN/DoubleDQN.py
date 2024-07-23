@@ -107,7 +107,7 @@ class DoubleDQNAgent:
         update_every=4,
     ):
         """
-        初始化函数，用于设置DQN代理的参数和组件
+        初始化函数，用于设置Double DQN的参数和组件
 
         Args:
             state_size (int): 环境的状态大小（例如，环境中的状态空间的大小）
@@ -160,7 +160,7 @@ class DoubleDQNAgent:
         else:
             return random.choice(np.arange(self.action_size))
 
-    def step(self, state, action, reward, next_state, done):
+    def remember(self, state, action, reward, next_state, done):
         """
         更新代理（Agent）的经验池并决定何时进行学习。
 
@@ -245,7 +245,7 @@ class DoubleDQNAgent:
 
     def save(self, path, name):
         """
-        将当前DQN模型的参数保存到指定路径下，并命名为dqn_model_<name>.pt。
+        将当前DQN模型的参数保存到指定路径下。
 
         Args:
             path (str): 保存模型的路径。
@@ -255,7 +255,9 @@ class DoubleDQNAgent:
             None
 
         """
-        torch.save(self.qnetwork_local.state_dict(), f"{path}/doubledqn_model_{name}.pt")
+        torch.save(
+            self.qnetwork_local.state_dict(), f"{path}/doubledqn_model_{name}.pt"
+        )
 
     def load(self, path, name):
         """
@@ -266,4 +268,6 @@ class DoubleDQNAgent:
         Returns:
             None
         """
-        self.qnetwork_local.load_state_dict(torch.load(f"{path}/doubledqn_model_{name}.pt"))
+        self.qnetwork_local.load_state_dict(
+            torch.load(f"{path}/doubledqn_model_{name}.pt")
+        )

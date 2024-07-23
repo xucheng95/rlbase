@@ -2,12 +2,12 @@ import os
 import argparse
 import gymnasium
 import matplotlib.pyplot as plt
-from DoubleDQN import DoubleDQNAgent
+from PrioritizedDQN import PrioritizedDQNAgent
 
 
 def train(args):
     """
-    训练DoubleDQN并在环境中执行以获取奖励。
+    训练DQN并在环境中执行以获取奖励。
 
     Args:
         args (argparse.Namespace): 包含所有命令行参数的命名空间对象。
@@ -19,7 +19,7 @@ def train(args):
     env = gymnasium.make(args.env_name)
     state_size = env.observation_space.shape[0]
     action_size = env.action_space.n
-    agent = DoubleDQNAgent(
+    agent = PrioritizedDQNAgent(
         state_size,
         action_size,
         buffer_size=args.buffer_size,
@@ -28,6 +28,9 @@ def train(args):
         learning_rate=args.learning_rate,
         tau=args.tau,
         update_every=args.update_every,
+        alpha=args.alpha,
+        beta_start=args.beta_start,
+        beta_frames=args.beta_frames,
     )
 
     epsilon = args.epsilon_start
@@ -67,7 +70,7 @@ def train(args):
 
 def test(args):
     """
-    对训练好的DoubleDQN进行5次测试，并打印每次的总奖励。
+    对训练好的DQN进行5次测试，并打印每次的总奖励。
 
     Args:
         args: argparse.Namespace类型的对象，包含以下属性：
@@ -82,7 +85,7 @@ def test(args):
     env = gymnasium.make(args.env_name, render_mode=args.render_mode)
     state_size = env.observation_space.shape[0]
     action_size = env.action_space.n
-    agent = DoubleDQNAgent(state_size, action_size)
+    agent = PrioritizedDQNAgent(state_size, action_size)
     agent.load("checkpoints", args.n_episodes)
 
     for _ in range(5):
@@ -103,7 +106,7 @@ def test(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--test_mode", action="store_true", help="是否为测试模式，默认为False"
+        "--test_mode", action="store_true", help="是否测试模式，默认为False"
     )
     parser.add_argument(
         "--env_name", default="CartPole-v1", help="环境名称，默认为CartPole-v1"
@@ -123,6 +126,15 @@ if __name__ == "__main__":
         "--tau", default=0.01, type=float, help="软更新参数，默认为0.01"
     )
     parser.add_argument("--update_every", default=4, type=int, help="更新频率，默认为4")
+    parser.add_argument(
+        "--alpha", default=0.6, type=float, help="优先级权重，默认为0.6"
+    )
+    parser.add_argument(
+        "--beta_start", default=0.4, type=float, help="优先级指数，默认为0.4"
+    )
+    parser.add_argument(
+        "--beta_frames", default=1000, type=int, help="优先级指数衰减步数，默认为10000"
+    )
     parser.add_argument(
         "--n_episodes", default=1000, type=int, help="训练回合数，默认为1000"
     )
