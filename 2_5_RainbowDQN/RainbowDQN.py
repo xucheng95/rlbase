@@ -18,7 +18,6 @@ class NoisyLinear(nn.Module):
         
         Returns:
             None
-        
         """
         super().__init__()
         self.in_features = in_features
@@ -46,8 +45,7 @@ class NoisyLinear(nn.Module):
             无
 
         Returns:
-            无返回值，直接修改对象的内部状态。
-
+            None
         """
         mu_range = 1 / np.sqrt(self.in_features)
         self.weight_mu.data.uniform_(-mu_range, mu_range)
@@ -63,8 +61,7 @@ class NoisyLinear(nn.Module):
             无。
         
         Returns:
-            None: 该函数没有返回值，直接修改了对象的属性。
-        
+            None
         """
         self.weight_epsilon.normal_()
         self.bias_epsilon.normal_()
@@ -78,7 +75,6 @@ class NoisyLinear(nn.Module):
         
         Returns:
             torch.Tensor: 输出张量，形状为 (batch_size, output_dim)，其中 output_dim 是权重矩阵的第二维的大小。
-        
         """
         if self.training:
             weight = self.weight_mu + self.weight_sigma * self.weight_epsilon
@@ -100,7 +96,6 @@ class QNetwork(nn.Module):
         
         Returns:
             None
-        
         """
         super().__init__()
         self.fc1 = NoisyLinear(state_size, 128)
@@ -117,7 +112,6 @@ class QNetwork(nn.Module):
         
         Returns:
             torch.Tensor: 输出的Q值Tensor，形状为(batch_size, num_actions)。
-        
         """
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
@@ -135,7 +129,6 @@ class QNetwork(nn.Module):
         
         Returns:
             无返回值，该函数用于更新模型中的噪声参数。
-        
         """
         self.fc1.reset_noise()
         self.fc2.reset_noise()
@@ -160,7 +153,6 @@ class SumTree:
         
         Returns:
             None: 该函数没有返回值，但会初始化一个二叉堆对象。
-        
         """
         self.capacity = capacity
         self.tree = np.zeros(2 * capacity - 1)
@@ -178,7 +170,6 @@ class SumTree:
         
         Returns:
             None
-        
         """
         idx = self.ptr + self.capacity - 1
         self.data[self.ptr] = data
@@ -198,7 +189,6 @@ class SumTree:
         
         Returns:
             None
-        
         """
         change = priority - self.tree[idx]
         self.tree[idx] = priority
@@ -218,7 +208,6 @@ class SumTree:
                 - leaf (int): 叶子节点在二叉搜索树中的索引。
                 - prefix_sum (int): 叶子节点对应的累积和（前缀和）。
                 - data (Any): 叶子节点对应的原始数据。
-        
         """
         parent = 0
         while True:
@@ -254,7 +243,6 @@ class PrioritizedReplayBuffer:
         
         Returns:
             None
-        
         """
         self.tree = SumTree(capacity)
         self.alpha = alpha
@@ -269,7 +257,6 @@ class PrioritizedReplayBuffer:
         
         Returns:
             None
-        
         """
         priority = (error + 1e-5) ** self.alpha
         self.tree.add(priority, sample)
@@ -287,7 +274,6 @@ class PrioritizedReplayBuffer:
                 - batch (list): 采样得到的数据列表。
                 - idxs (list): 与batch中数据对应的索引列表。
                 - is_weights (np.ndarray): 重要性采样权重数组。
-        
         """
         batch = []
         idxs = []
@@ -315,8 +301,7 @@ class PrioritizedReplayBuffer:
             error (float): 用于计算优先级的误差值。
         
         Returns:
-            None: 此函数没有返回值，但会更新树中的元素。
-        
+            None
         """
         priority = (error + 1e-5) ** self.alpha
         self.tree.update(idx, priority)
@@ -370,7 +355,6 @@ class RainbowAgent:
 
         Returns:
             int: 选择的动作编号，范围在 [0, action_size) 之间。
-
         """
         state = torch.from_numpy(state).float().unsqueeze(0)
         self.qnetwork_local.eval()
@@ -385,7 +369,7 @@ class RainbowAgent:
 
     def remember(self, state, action, reward, next_state, done):
         """
-        将经验存储到经验池中，并在满足条件时开始DQN的学习。
+        将经验存储到经验池中，并在满足条件时开始学习。
         
         Args:
             state (np.ndarray): 当前状态。
@@ -396,7 +380,6 @@ class RainbowAgent:
         
         Returns:
             None
-        
         """
         self.frame_idx += 1
         self.n_step_memory.append((state, action, reward, next_state, done))
@@ -432,7 +415,6 @@ class RainbowAgent:
             - R (float): n步累积回报，即前n步的奖励按照gamma的折扣率累积得到的值。
             - next_state (Any): 下一个状态，即n步记忆序列中的最后一个状态。
             - done (bool): 是否结束，即n步记忆序列中的最后一个状态是否为终止状态。
-        
         """
         R = 0
         for i in range(self.n_step):
@@ -455,7 +437,6 @@ class RainbowAgent:
 
         Returns:
             None
-
         """
         states, actions, rewards, next_states, dones = zip(*experiences)
         states = torch.from_numpy(np.vstack(states)).float()
@@ -507,7 +488,7 @@ class RainbowAgent:
 
     def save(self, path, name):
         """
-        将当前DQN模型的参数保存到指定路径下。
+        将当前模型的参数保存到指定路径下。
 
         Args:
             path (str): 保存模型的路径。
@@ -515,19 +496,17 @@ class RainbowAgent:
 
         Returns:
             None
-
         """
         torch.save(self.qnetwork_local.state_dict(), f"{path}/rainbow_model_{name}.pt")
 
     def load(self, path, name):
         """
-        从指定路径下加载DQN模型的参数，并更新当前DQN模型。
+        从指定路径下加载模型的参数，并更新当前模型。
         Args:
             path (str): 保存模型的路径。
             name (str): 模型的名称，用于生成保存文件的名称。
         Returns:
             None
-
         """
         self.qnetwork_local.load_state_dict(
             torch.load(f"{path}/rainbow_model_{name}.pt")

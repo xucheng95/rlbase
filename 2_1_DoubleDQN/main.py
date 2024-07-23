@@ -13,8 +13,7 @@ def train(args):
         args (argparse.Namespace): 包含所有命令行参数的命名空间对象。
 
     Returns:
-        None: 此函数没有返回值，但在训练过程中会保存检查点和奖励图像。
-
+        None
     """
     env = gymnasium.make(args.env_name)
     state_size = env.observation_space.shape[0]
@@ -77,7 +76,6 @@ def test(args):
 
     Returns:
         None
-
     """
     env = gymnasium.make(args.env_name, render_mode=args.render_mode)
     state_size = env.observation_space.shape[0]

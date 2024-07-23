@@ -15,8 +15,7 @@ class QNetwork(nn.Module):
             action_size (int): 动作空间的大小。
 
         Returns:
-            None: 无返回值，该函数主要用于初始化类的实例变量。
-
+            None
         """
         super().__init__()
         self.fc1 = nn.Linear(state_size, 64)
@@ -26,13 +25,12 @@ class QNetwork(nn.Module):
     def forward(self, x):
         """
         前向传播函数，用于计算Q值。
-        
+
         Args:
             x (torch.Tensor): 输入的Tensor，形状为(batch_size, input_dim)。
-        
+
         Returns:
             torch.Tensor: 输出的Q值Tensor，形状为(batch_size, num_actions)。
-        
         """
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
@@ -44,20 +42,19 @@ class SumTree:
     def __init__(self, capacity):
         """
         初始化一个完全二叉树。
-        
+
         Args:
             capacity (int): 二叉树的最大容量。
-        
+
         Attributes:
             capacity (int): 二叉树的最大容量。
             tree (np.ndarray): 用于存储二叉树的数组，大小为2*capacity-1。
             data (np.ndarray): 用于存储实际数据的数组，大小为capacity，数据类型为object。
             size (int): 当前二叉树中元素的数量。
             ptr (int): 指向下一个空闲位置的指针，用于在二叉树中插入新元素。
-        
+
         Returns:
-            None: 该函数没有返回值，但会初始化一个二叉堆对象。
-        
+            None
         """
         self.capacity = capacity
         self.tree = np.zeros(2 * capacity - 1)
@@ -68,14 +65,13 @@ class SumTree:
     def add(self, priority, data):
         """
         在二叉树中添加一个数据元素，并更新二叉树的结构以保持其性质。
-        
+
         Args:
             priority (int): 元素的优先级
             data (Any): 元素的数据
-        
+
         Returns:
             None
-        
         """
         idx = self.ptr + self.capacity - 1
         self.data[self.ptr] = data
@@ -88,14 +84,13 @@ class SumTree:
     def update(self, idx, priority):
         """
         更新二叉树中指定索引位置元素的优先级，并重新调整二叉树的结构以保持其性质。
-        
+
         Args:
             idx (int): 二叉树中需要更新优先级的元素的索引。
             priority (int): 更新后的优先级值。
-        
+
         Returns:
             None
-        
         """
         change = priority - self.tree[idx]
         self.tree[idx] = priority
@@ -106,16 +101,15 @@ class SumTree:
     def get_leaf(self, value):
         """
         根据给定的值value在二叉树中找到对应的叶子节点并返回相关信息。
-        
+
         Args:
             value (int): 需要查找的值。
-        
+
         Returns:
             tuple: 包含三个元素的元组，分别代表：
                 - leaf (int): 叶子节点在二叉搜索树中的索引。
                 - prefix_sum (int): 叶子节点对应的累积和（前缀和）。
                 - data (Any): 叶子节点对应的原始数据。
-        
         """
         parent = 0
         while True:
@@ -144,14 +138,13 @@ class PrioritizedReplayBuffer:
     def __init__(self, capacity, alpha):
         """
         初始化一个经验回放优先级队列。
-        
+
         Args:
             capacity (int): 队列的容量，即最多能存储的经验数量。
             alpha (float): 用于计算优先级的指数参数，alpha值越大，优先级差异越显著。
-        
+
         Returns:
             None
-        
         """
         self.tree = SumTree(capacity)
         self.alpha = alpha
@@ -159,14 +152,13 @@ class PrioritizedReplayBuffer:
     def add(self, error, sample):
         """
         将样本添加到优先队列中，并根据误差计算优先级。
-        
+
         Args:
             error (float): 样本的误差值。
             sample (Any): 要添加到优先队列中的样本。
-        
+
         Returns:
             None
-        
         """
         priority = (error + 1e-5) ** self.alpha
         self.tree.add(priority, sample)
@@ -174,17 +166,16 @@ class PrioritizedReplayBuffer:
     def sample(self, batch_size, beta):
         """
         从经验回放缓冲区中采样一批数据。
-        
+
         Args:
             batch_size (int): 采样批次大小。
             beta (float): 用于计算重要性采样权重的参数。
-        
+
         Returns:
             tuple: 包含三个元素的元组，分别为：
                 - batch (list): 采样得到的数据列表。
                 - idxs (list): 与batch中数据对应的索引列表。
                 - is_weights (np.ndarray): 重要性采样权重数组。
-        
         """
         batch = []
         idxs = []
@@ -206,14 +197,13 @@ class PrioritizedReplayBuffer:
     def update(self, idx, error):
         """
         更新索引idx的优先级，并将其在树中的位置重新排列。
-        
+
         Args:
             idx (int): 要更新的索引值。
             error (float): 用于计算优先级的误差值。
-        
+
         Returns:
-            None: 此函数没有返回值，但会更新树中的元素。
-        
+            None
         """
         priority = (error + 1e-5) ** self.alpha
         self.tree.update(idx, priority)
@@ -254,8 +244,7 @@ class PrioritizedDQNAgent:
             beta_frames (int): 用于计算beta值的帧数。
 
         Returns:
-            None: 初始化对象，不返回任何值。
-
+            None
         """
         self.state_size = state_size
         self.action_size = action_size
@@ -284,7 +273,6 @@ class PrioritizedDQNAgent:
 
         Returns:
             int: 选择的动作编号，范围在 [0, action_size) 之间。
-
         """
         state = torch.from_numpy(state).float().unsqueeze(0)
         self.qnetwork_local.eval()
@@ -299,18 +287,17 @@ class PrioritizedDQNAgent:
 
     def remember(self, state, action, reward, next_state, done):
         """
-        将经验存储到经验池中，并在满足条件时开始DQN的学习。
-        
+        将经验存储到经验池中，并在满足条件时开始学习。
+
         Args:
             state (np.ndarray): 当前状态。
             action (int): 当前动作。
             reward (float): 获得的奖励。
             next_state (np.ndarray): 下一个状态。
             done (bool): 是否为终止状态。
-        
+
         Returns:
             None
-        
         """
         self.frame_idx += 1
         self.memory.add(abs(reward), (state, action, reward, next_state, done))
@@ -338,7 +325,6 @@ class PrioritizedDQNAgent:
 
         Returns:
             None
-
         """
         states, actions, rewards, next_states, dones = zip(*experiences)
         states = torch.from_numpy(np.vstack(states)).float()
@@ -391,7 +377,7 @@ class PrioritizedDQNAgent:
 
     def save(self, path, name):
         """
-        将当前DQN模型的参数保存到指定路径下。
+        将当前模型的参数保存到指定路径下。
 
         Args:
             path (str): 保存模型的路径。
@@ -399,7 +385,6 @@ class PrioritizedDQNAgent:
 
         Returns:
             None
-
         """
         torch.save(
             self.qnetwork_local.state_dict(), f"{path}/prioritized_model_{name}.pt"
@@ -407,13 +392,14 @@ class PrioritizedDQNAgent:
 
     def load(self, path, name):
         """
-        从指定路径下加载DQN模型的参数，并更新当前DQN模型。
+        从指定路径下加载模型的参数，并更新当前模型。
+
         Args:
             path (str): 保存模型的路径。
             name (str): 模型的名称，用于生成保存文件的名称。
+
         Returns:
             None
-
         """
         self.qnetwork_local.load_state_dict(
             torch.load(f"{path}/prioritized_model_{name}.pt")

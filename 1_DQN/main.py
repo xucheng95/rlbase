@@ -7,14 +7,13 @@ from DQN import DQNAgent
 
 def train(args):
     """
-    训练DQN并在环境中执行以获取奖励。
+    训练并在环境中执行以获取奖励。
 
     Args:
         args (argparse.Namespace): 包含所有命令行参数的命名空间对象。
 
     Returns:
-        None: 此函数没有返回值，但在训练过程中会保存检查点和奖励图像。
-
+        None
     """
     env = gymnasium.make(args.env_name)
     state_size = env.observation_space.shape[0]
@@ -67,7 +66,7 @@ def train(args):
 
 def test(args):
     """
-    对训练好的DQN进行5次测试，并打印每次的总奖励。
+    对训练好的agent进行5次测试，并打印每次的总奖励。
 
     Args:
         args: argparse.Namespace类型的对象，包含以下属性：
@@ -77,7 +76,6 @@ def test(args):
 
     Returns:
         None
-
     """
     env = gymnasium.make(args.env_name, render_mode=args.render_mode)
     state_size = env.observation_space.shape[0]
