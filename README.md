@@ -23,7 +23,7 @@ RLBase 项目旨在为研究人员和开发人员提供一个简单易用的框�
 
 1. 克隆此仓库：
     ```bash
-    git clone https://github.com/yourusername/rlbase.git
+    git clone https://github.com/xucheng95/rlbase.git
     cd rlbase
     ```
 
@@ -52,9 +52,9 @@ RLBase 项目旨在为研究人员和开发人员提供一个简单易用的框�
 - [X] DQN (Deep Q-Network)
 - [X] Double DQN
 - [X] Dueling DQN
-- [ ] Noisy DQN
+- [X] Noisy DQN
 - [X] Prioritized DQN
-- [ ] Rainbow
+- [X] Rainbow
 - [ ] A2C (Advantage Actor-Critic)
 - [ ] PPO (Proximal Policy Optimization)
 - [ ] SAC (Soft Actor-Critic)
