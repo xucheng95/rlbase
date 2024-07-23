@@ -8,7 +8,7 @@ import torch.optim as optim
 class QNetwork(nn.Module):
     def __init__(self, state_size, action_size):
         """
-        初始化函数，用于创建神经网络。
+        初始化函数，用于设置DQN网络。
 
         Args:
             state_size (int): 状态空间的大小。
@@ -24,6 +24,16 @@ class QNetwork(nn.Module):
         self.fc3 = nn.Linear(64, action_size)
 
     def forward(self, x):
+        """
+        前向传播函数，用于计算Q值。
+        
+        Args:
+            x (torch.Tensor): 输入的Tensor，形状为(batch_size, input_dim)。
+        
+        Returns:
+            torch.Tensor: 输出的Q值Tensor，形状为(batch_size, num_actions)。
+        
+        """
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
         x = self.fc3(x)
@@ -33,18 +43,21 @@ class QNetwork(nn.Module):
 class SumTree:
     def __init__(self, capacity):
         """
-        初始化一个二叉堆（二叉堆通常以数组形式存储）。
-
+        初始化一个完全二叉树。
+        
         Args:
-            capacity (int): 二叉堆的最大容量。
-
+            capacity (int): 二叉树的最大容量。
+        
         Attributes:
-            capacity (int): 二叉堆的最大容量。
-            tree (np.ndarray): 用于存储二叉堆的树形结构的数组，大小为 2 * capacity - 1。
-            data (np.ndarray): 用于存储实际数据的数组，大小为 capacity，数据类型为 object。
-            size (int): 当前二叉堆中元素的数量。
-            ptr (int): 指向下一个空闲位置的索引，用于快速添加新元素。
-
+            capacity (int): 二叉树的最大容量。
+            tree (np.ndarray): 用于存储二叉树的数组，大小为2*capacity-1。
+            data (np.ndarray): 用于存储实际数据的数组，大小为capacity，数据类型为object。
+            size (int): 当前二叉树中元素的数量。
+            ptr (int): 指向下一个空闲位置的指针，用于在二叉树中插入新元素。
+        
+        Returns:
+            None: 该函数没有返回值，但会初始化一个二叉堆对象。
+        
         """
         self.capacity = capacity
         self.tree = np.zeros(2 * capacity - 1)
@@ -54,15 +67,15 @@ class SumTree:
 
     def add(self, priority, data):
         """
-        向循环队列中添加一个元素，并根据优先级更新堆结构。
-
+        在二叉树中添加一个数据元素，并更新二叉树的结构以保持其性质。
+        
         Args:
-            priority (int): 待添加元素的优先级。
-            data (Any): 待添加的元素数据。
-
+            priority (int): 元素的优先级
+            data (Any): 元素的数据
+        
         Returns:
-            None: 该函数没有返回值，直接修改对象的状态。
-
+            None
+        
         """
         idx = self.ptr + self.capacity - 1
         self.data[self.ptr] = data
@@ -74,15 +87,15 @@ class SumTree:
 
     def update(self, idx, priority):
         """
-        更新堆中指定索引位置元素的优先级，并重新调整堆结构。
-
+        更新二叉树中指定索引位置元素的优先级，并重新调整二叉树的结构以保持其性质。
+        
         Args:
-            idx (int): 堆中需要更新优先级的元素的索引位置。
-            priority (int): 更新后的元素优先级。
-
+            idx (int): 二叉树中需要更新优先级的元素的索引。
+            priority (int): 更新后的优先级值。
+        
         Returns:
-            None: 此函数没有返回值，但会修改堆中对应索引位置元素的优先级，并重新调整堆结构。
-
+            None
+        
         """
         change = priority - self.tree[idx]
         self.tree[idx] = priority
@@ -92,17 +105,17 @@ class SumTree:
 
     def get_leaf(self, value):
         """
-        在二叉堆中查找值为value的叶节点，并返回其索引、值和对应的数据。
-
+        根据给定的值value在二叉树中找到对应的叶子节点并返回相关信息。
+        
         Args:
-            value (int): 要在二叉堆中查找的值。
-
+            value (int): 需要查找的值。
+        
         Returns:
-            tuple: 包含三个元素的元组，分别表示：
-                - leaf (int): 值为value的叶节点的索引。
-                - value (int): 值为value的叶节点在二叉堆中的值。
-                - data (Any): 与叶节点对应的数据。
-
+            tuple: 包含三个元素的元组，分别代表：
+                - leaf (int): 叶子节点在二叉搜索树中的索引。
+                - prefix_sum (int): 叶子节点对应的累积和（前缀和）。
+                - data (Any): 叶子节点对应的原始数据。
+        
         """
         parent = 0
         while True:
@@ -130,48 +143,48 @@ class SumTree:
 class PrioritizedReplayBuffer:
     def __init__(self, capacity, alpha):
         """
-        初始化一个优先级经验回放（Prioritized Experience Replay）的实例。
-
+        初始化一个经验回放优先级队列。
+        
         Args:
-            capacity (int): 优先级经验回放的容量，即可以存储的最大经验数量。
-            alpha (float): 优先级回放的alpha参数，用于控制优先级对采样概率的影响程度。
-
+            capacity (int): 队列的容量，即最多能存储的经验数量。
+            alpha (float): 用于计算优先级的指数参数，alpha值越大，优先级差异越显著。
+        
         Returns:
-            None: 无返回值，主要初始化实例的内部状态。
-
+            None
+        
         """
         self.tree = SumTree(capacity)
         self.alpha = alpha
 
     def add(self, error, sample):
         """
-        向树中添加样本，并根据错误率计算优先级。
-
+        将样本添加到优先队列中，并根据误差计算优先级。
+        
         Args:
-            error (float): 样本的错误率。
-            sample (Any): 待添加的样本，类型根据实际需求而定。
-
+            error (float): 样本的误差值。
+            sample (Any): 要添加到优先队列中的样本。
+        
         Returns:
-            None: 该函数不返回任何值，而是将样本添加到树中。
-
+            None
+        
         """
         priority = (error + 1e-5) ** self.alpha
         self.tree.add(priority, sample)
 
     def sample(self, batch_size, beta):
         """
-        根据树结构中的优先级采样一个批量的数据
-
+        从经验回放缓冲区中采样一批数据。
+        
         Args:
-            batch_size (int): 需要采样的数据批次大小
-            beta (float): 控制重要性采样权重的指数平滑系数
-
+            batch_size (int): 采样批次大小。
+            beta (float): 用于计算重要性采样权重的参数。
+        
         Returns:
-            tuple: 包含三个元素的元组
-            - batch (list): 采样的数据列表
-            - idxs (list): 采样的数据在原始数据集中的索引列表
-            - is_weights (numpy.ndarray): 重要性采样权重数组
-
+            tuple: 包含三个元素的元组，分别为：
+                - batch (list): 采样得到的数据列表。
+                - idxs (list): 与batch中数据对应的索引列表。
+                - is_weights (np.ndarray): 重要性采样权重数组。
+        
         """
         batch = []
         idxs = []
@@ -192,15 +205,15 @@ class PrioritizedReplayBuffer:
 
     def update(self, idx, error):
         """
-        更新给定索引的优先级，并更新树结构。
-
+        更新索引idx的优先级，并将其在树中的位置重新排列。
+        
         Args:
-            idx (int): 需要更新的索引值。
-            error (float): 与该索引相关的误差值。
-
+            idx (int): 要更新的索引值。
+            error (float): 用于计算优先级的误差值。
+        
         Returns:
-            None: 此函数没有返回值，但会更新树结构中的优先级。
-
+            None: 此函数没有返回值，但会更新树中的元素。
+        
         """
         priority = (error + 1e-5) ** self.alpha
         self.tree.update(idx, priority)
@@ -286,18 +299,18 @@ class PrioritizedDQNAgent:
 
     def remember(self, state, action, reward, next_state, done):
         """
-        执行一步更新过程，用于DQN中的学习
-
+        将经验存储到经验池中，并在满足条件时开始DQN的学习。
+        
         Args:
-            state (numpy.ndarray): 当前状态
-            action (int): 当前动作
-            reward (float): 获得的奖励
-            next_state (numpy.ndarray): 下一个状态
-            done (bool): 是否达到终止状态
-
+            state (np.ndarray): 当前状态。
+            action (int): 当前动作。
+            reward (float): 获得的奖励。
+            next_state (np.ndarray): 下一个状态。
+            done (bool): 是否为终止状态。
+        
         Returns:
             None
-
+        
         """
         self.frame_idx += 1
         self.memory.add(abs(reward), (state, action, reward, next_state, done))
@@ -316,7 +329,7 @@ class PrioritizedDQNAgent:
 
     def learn(self, experiences, idxs, is_weights):
         """
-        从经验池中随机抽取一批经验进行学习
+        用经验池中随机抽取的一批经验进行学习
 
         Args:
             experiences (tuple): 包含状态的列表、动作的列表、奖励的列表、下一个状态的列表、是否终止的列表

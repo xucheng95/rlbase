@@ -10,16 +10,16 @@ from collections import deque
 class NoisyLinear(nn.Module):
     def __init__(self, in_features, out_features, std_init=0.017):
         """
-        初始化NoisyLinear层。
-
+        初始化函数。
+        
         Args:
-            in_features (int): 输入特征的数量。
-            out_features (int): 输出特征的数量。
-            std_init (float, optional): 用于初始化权重标准差和偏置标准差的初始值。默认为0.5。
-
+            in_features (int): 输入特征的维度。
+            out_features (int): 输出特征的维度。
+            sigma_init (float, optional): 初始化标准差的值。默认为 0.017。
+        
         Returns:
             None
-
+        
         """
         super().__init__()
         self.in_features = in_features
@@ -74,17 +74,14 @@ class NoisyLinear(nn.Module):
 
     def forward(self, input):
         """
-        对输入数据进行线性变换。
-
+        在训练过程中应用加权的权重和偏置进行线性变换，否则只使用平均权重和偏置。
+        
         Args:
-            input (Tensor): 输入数据，其形状为 (batch_size, input_size)。
-
+            x (torch.Tensor): 输入张量，形状为 (batch_size, input_dim)。
+        
         Returns:
-            Tensor: 经过线性变换后的输出数据，其形状为 (batch_size, output_size)。
-
-        在训练模式下，会加上可学习的标准差（weight_sigma 和 bias_sigma）与随机噪声（weight_epsilon 和 bias_epsilon）
-        的乘积来模拟参数的不确定性。在非训练模式下，则只使用均值（weight_mu 和 bias_mu）作为权重和偏置。
-
+            torch.Tensor: 输出张量，形状为 (batch_size, output_dim)，其中 output_dim 是权重矩阵的第二维的大小。
+        
         """
         if self.training:
             weight = self.weight_mu + self.weight_sigma * self.weight_epsilon
@@ -98,15 +95,15 @@ class NoisyLinear(nn.Module):
 class NoisyQNetwork(nn.Module):
     def __init__(self, state_size, action_size):
         """
-        初始化函数，用于创建神经网络。
-
+        初始化函数，用于设置DQN网络结构。
+        
         Args:
-            state_size (int): 状态空间的大小。
-            action_size (int): 动作空间的大小。
-
+            state_size (int): 状态空间的维度大小。
+            action_size (int): 动作空间的维度大小。
+        
         Returns:
-            None: 无返回值，该函数主要用于初始化类的实例变量。
-
+            None
+        
         """
         super().__init__()
         self.fc1 = NoisyLinear(state_size, 64)
@@ -114,6 +111,16 @@ class NoisyQNetwork(nn.Module):
         self.fc3 = NoisyLinear(64, action_size)
 
     def forward(self, x):
+        """
+        前向传播函数，用于计算Q值。
+        
+        Args:
+            x (torch.Tensor): 输入的Tensor，形状为(batch_size, input_dim)。
+        
+        Returns:
+            torch.Tensor: 输出的Q值Tensor，形状为(batch_size, num_actions)。
+        
+        """
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
         x = self.fc3(x)
@@ -121,11 +128,14 @@ class NoisyQNetwork(nn.Module):
 
     def reset_noise(self):
         """
-        重置噪声项。
+        重置模型中的噪声。
+        
         Args:
-            无参数。
+            无。
+        
         Returns:
-            None: 该函数不返回任何值，仅修改对象内部状态。
+            无返回值，该函数用于更新模型中的噪声参数。
+        
         """
         self.fc1.reset_noise()
         self.fc2.reset_noise()
@@ -135,22 +145,22 @@ class NoisyQNetwork(nn.Module):
 class ReplayBuffer:
     def __init__(self, buffer_size, batch_size):
         """
-        初始化一个经验回放（Experience Replay）的缓冲区对象。
-
+        初始化一个经验回放优先级队列。
+        
         Args:
-            buffer_size (int): 经验回放缓冲区能够存储的最大样本数。
-            batch_size (int): 批量采样时从缓冲区中抽取的样本数。
-
+            capacity (int): 队列的容量，即最多能存储的经验数量。
+            batch_size (int): 每次从队列中抽取的经验数量。
+        
         Returns:
-            None: 该函数不返回任何值，而是初始化内部属性。
-
+            None
+        
         """
         self.memory = deque(maxlen=buffer_size)
         self.batch_size = batch_size
 
     def add(self, state, action, reward, next_state, done):
         """
-        将状态转移数据添加到记忆库中。
+        将样本添加到队列中。
 
         Args:
             state (numpy.ndarray): 当前环境的状态，形状为 (state_size,)。
@@ -167,7 +177,7 @@ class ReplayBuffer:
 
     def sample(self):
         """
-        从经验回放池中随机抽取一批经验用于训练。
+        从经验回放池队列中随机抽取一批经验用于训练。
 
         Args:
             无参数。
@@ -263,18 +273,18 @@ class NoisyDQNAgent:
 
     def remember(self, state, action, reward, next_state, done):
         """
-        更新代理（Agent）的经验池并决定何时进行学习。
-
+        将经验存储到经验池中，并在满足条件时开始DQN的学习。
+        
         Args:
-            state (numpy.ndarray): 当前环境的状态，形状为 (state_size,)。
-            action (int): 动作编号，范围在 [0, action_size) 之间。
-            reward (float): 代理（Agent）执行动作后从环境（Environment）获得的奖励。
-            next_state (numpy.ndarray): 执行动作后转移到的下一个状态，形状为 (state_size,)。
-            done (bool): 一个布尔值，指示当前回合是否结束。
-
+            state (np.ndarray): 当前状态。
+            action (int): 当前动作。
+            reward (float): 获得的奖励。
+            next_state (np.ndarray): 下一个状态。
+            done (bool): 是否为终止状态。
+        
         Returns:
-            None: 该函数没有返回值，但会更新经验池，并在满足条件时进行学习。
-
+            None
+        
         """
         self.memory.add(state, action, reward, next_state, done)
         self.t_step = (self.t_step + 1) % self.update_every
