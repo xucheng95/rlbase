@@ -222,7 +222,7 @@ class PPOAgent:
             None
         """
         torch.save(
-            self.policy_network.state_dict(), f"{path}/reinforce_model_{name}.pt"
+            self.policy_network.state_dict(), f"{path}/ppo_model_{name}.pt"
         )
 
     def load(self, path, name):
@@ -237,5 +237,5 @@ class PPOAgent:
             None
         """
         self.policy_network.load_state_dict(
-            torch.load(f"{path}/reinforce_model_{name}.pt")
+            torch.load(f"{path}/ppo_model_{name}.pt")
         )

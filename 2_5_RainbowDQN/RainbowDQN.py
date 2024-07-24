@@ -128,7 +128,7 @@ class QNetwork(nn.Module):
             无。
         
         Returns:
-            无返回值，该函数用于更新模型中的噪声参数。
+            None
         """
         self.fc1.reset_noise()
         self.fc2.reset_noise()
