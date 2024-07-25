@@ -1,4 +1,5 @@
 numpy==1.26.4
 torch
-gymnasium[all]
 swig
+gymnasium[all]
+matplotlib
